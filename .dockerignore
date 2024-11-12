@@ -3,6 +3,7 @@
 !manage.py
 !readme.md
 !requirements.txt
+!requirements_lite.txt
 !bin
 !scripts
 !settings.py
@@ -10,3 +11,4 @@
 !tests
 !vendor
 !weights
+!software/texlive-fonts-extra.deb

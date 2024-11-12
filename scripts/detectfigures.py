@@ -62,12 +62,12 @@ def detectfigures(
         'docker run'
         ' --rm'
         ' --env-file deepfigures-local.env'
-        ' --volume {output_directory}:{internal_output_directory}'
-        ' --volume {pdf_directory}:{internal_pdf_directory}'
+        ' --volume "{output_directory}":"{internal_output_directory}"'
+        ' --volume "{pdf_directory}":"{internal_pdf_directory}"'
         ' {tag}:{version}'
         ' python3 /work/scripts/rundetection.py'
-        '   {internal_output_directory}'
-        '   {internal_pdf_path}'.format(
+        '   "{internal_output_directory}"'
+        '   "{internal_pdf_path}"'.format(
             tag=cpu_docker_img['tag'],
             version=settings.VERSION,
             output_directory=output_directory,
