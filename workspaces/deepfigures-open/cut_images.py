@@ -1,6 +1,8 @@
 import os
 import json
 from PIL import Image
+import pwd
+import grp
 
 def process_output_directory(output_dir):
     """遍历输出目录下的每个子目录，处理其中的 .json 文件"""
@@ -12,10 +14,40 @@ def process_output_directory(output_dir):
                 if file.endswith('.json'):
                     json_file = os.path.join(subdir_path, file)
                     print(f"Processing JSON file: {json_file}")
+                    # 处理权限问题
+                    ensure_file_accessible(json_file)
                     process_json_file(json_file, subdir_path)
                     break  # 处理完第一个找到的 .json 文件后退出
             else:
                 print(f"No JSON file found in: {subdir_path}")
+
+def ensure_file_accessible(file_path):
+    """
+    确保文件对当前用户可访问。如果需要，修改文件的所有权。
+    
+    :param file_path: 需要更改权限的文件路径
+    """
+    try:
+        # 获取当前用户的 UID 和 GID
+        current_uid = os.geteuid()  # 获取当前用户的 UID
+        current_gid = os.getegid()  # 获取当前用户的 GID
+
+        # 获取文件的当前所有权
+        file_stat = os.stat(file_path)
+        file_uid = file_stat.st_uid
+        file_gid = file_stat.st_gid
+
+        # 如果文件不属于当前用户，则尝试更改文件所有权
+        if file_uid != current_uid or file_gid != current_gid:
+            print(f"Changing ownership of {file_path} to current user ({current_uid}:{current_gid})")
+            os.chown(file_path, current_uid, current_gid)
+        else:
+            print(f"File {file_path} already accessible by the current user.")
+    
+    except PermissionError as e:
+        print(f"Permission denied while changing ownership of {file_path}: {e}")
+    except Exception as e:
+        print(f"Error occurred while changing ownership of {file_path}: {e}")
 
 def process_json_file(json_file, subdir_path):
     """根据 JSON 文件裁剪图像并保存"""

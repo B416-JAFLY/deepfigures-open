@@ -20,7 +20,7 @@ opencv-python
 pandas
 pytest
 pytest-xdist==1.18.2
-scipy
+scipy==1.2.1
 imageio
 scikit-image
 seaborn

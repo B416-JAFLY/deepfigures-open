@@ -1,15 +1,52 @@
-# PDFFigures2
-pdffigures2/
+# 忽略操作系统生成的临时文件
+.DS_Store
+Thumbs.db
 
-# python files
-*__pycache__
-*pyc
-*pyo
-
-# editor files
-*~
-\#*\#
-
-# build files
-*.so
+# 忽略编译生成的文件
+*.out
+*.obj
 *.o
+*.exe
+*.dll
+*.so
+*.dylib
+*.class
+
+# 忽略日志文件
+*.log
+
+# 忽略临时文件
+*.tmp
+*.swp
+*.swo
+*.bak
+
+# 忽略 IDE 相关文件（例如 VSCode、JetBrains 系列 IDE）
+.vscode/
+.idea/
+*.iml
+
+# 忽略依赖库（例如 Node.js 中的依赖）
+node_modules/
+
+# 忽略 Python 项目的虚拟环境
+venv/
+__pycache__/
+
+# 忽略打包文件
+*.zip
+*.tar.gz
+*.rar
+
+# 忽略环境配置文件
+.env
+
+/processed_images
+/uploads
+
+/workspaces/deepfigures-open/bin/pdffigures2-assembly-0.0.12-SNAPSHOT.jar
+/workspaces/deepfigures-open/weights
+/workspaces/deepfigures-open/software
+/workspaces/deepfigures-open/output
+
+*.pdf
