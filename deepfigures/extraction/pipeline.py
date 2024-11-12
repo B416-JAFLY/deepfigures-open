@@ -133,7 +133,7 @@ class FigureExtractionPipeline(object):
             parent_directory=output_directory)
 
         # create the extraction results directory
-        os.makedirs(figure_extraction.paths['BASE'])
+        os.makedirs(figure_extraction.paths['BASE'], exist_ok=True)
 
         # copy the PDF into the extraction results directory
         shutil.copy(pdf_path, figure_extraction.paths['PDF_PATH'])
