@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, render_template_string
 import os
 import uuid
 import subprocess
@@ -22,6 +22,24 @@ app.config['FINAL_OUTPUT_FOLDER'] = FINAL_OUTPUT_FOLDER
 # 创建必要的文件夹（如果不存在则创建）
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['FINAL_OUTPUT_FOLDER'], exist_ok=True)
+
+# 主页路由，返回简短的介绍
+@app.route('/')
+def index():
+    """
+    主页，展示简短的介绍信息。
+    """
+    return render_template_string("""
+        <html>
+            <head><title>Welcome to DeepFigures API</title></head>
+            <body>
+                <h1>Welcome to DeepFigures API</h1>
+                <p>This is a simple Flask application for processing PDF files containing figures.</p>
+                <p>You can upload a PDF file, and the system will extract images and provide download links.</p>
+                <p>To get started, use the /upload endpoint to upload a PDF.</p>
+            </body>
+        </html>
+    """)
 
 def allowed_file(filename):
     """
