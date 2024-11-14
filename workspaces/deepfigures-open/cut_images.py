@@ -138,6 +138,30 @@ def crop_image(image_path, boundary, output_path):
         cropped_image.save(output_path)
         print(f"Saved cropped image to {output_path}")
 
+def set_directory_permissions(directory_path):
+    """将目录及其所有子目录和文件的权限递归设置为 777"""
+    try:
+        # 遍历目录及子目录
+        for root, dirs, files in os.walk(directory_path):
+            # 设置当前目录的权限为 777
+            os.chmod(root, 0o777)
+            print(f"Permissions for directory {root} set to 777.")
+            
+            # 设置所有子文件的权限为 777
+            for file in files:
+                file_path = os.path.join(root, file)
+                os.chmod(file_path, 0o777)
+                print(f"Permissions for file {file_path} set to 777.")
+    
+    except PermissionError as e:
+        print(f"Permission denied while changing permissions for {directory_path}: {e}")
+    except Exception as e:
+        print(f"Error occurred while changing permissions for {directory_path}: {e}")
+
+
 if __name__ == "__main__":
     output_directory = './output'
     process_output_directory(output_directory)
+    
+    # 执行完处理后修改输出目录权限为777
+    set_directory_permissions(output_directory)
