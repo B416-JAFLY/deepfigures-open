@@ -33,7 +33,7 @@
 
 5. **启动应用**：
       ```bash
-      python app.py
+      (sudo) python app.py
       ```
 
 ### API 用法
@@ -59,7 +59,7 @@
 2. **文件上传接口 `/upload`**
 
     - **请求方式**：`POST`
-    - **描述**：上传一个 PDF 文件，系统会提取其中的图像，并返回图像的下载链接。
+    - **描述**：上传一个 PDF 文件，系统会提取其中的图像，并返回图像的下载链接,以及图像对应的标题的.json文件。
     
     - **请求参数**：
       - `file`：PDF 文件（必填）
@@ -67,10 +67,15 @@
     - **返回示例**：
       ```json
       {
-          "images": [
-              "/download/123e4567-e89b-12d3-a456-426614174000/figure1.png",
-              "/download/123e4567-e89b-12d3-a456-426614174000/figure2.png"
-          ]
+        "images": [
+          "/download/2118e975-1549-4556-bab1-e0a305735f11/Table_page0003_Table_1.png",
+          "/download/2118e975-1549-4556-bab1-e0a305735f11/Figure_page0006_Figure_3.png",
+          "/download/2118e975-1549-4556-bab1-e0a305735f11/Figure_page0005_Figure_2.png",
+          "/download/2118e975-1549-4556-bab1-e0a305735f11/Figure_page0003_Figure_1.png",
+          "/download/2118e975-1549-4556-bab1-e0a305735f11/Table_page0007_Table_2.png",
+          "/download/2118e975-1549-4556-bab1-e0a305735f11/Figure_page0008_Figure_4.png"
+        ],
+        "json": "/download/2118e975-1549-4556-bab1-e0a305735f11/processed_figures.json"
       }
       ```
       
@@ -86,3 +91,31 @@
     
     - **返回示例**：
       - 返回图片文件：图片数据
+
+4. **下载.json文件接口 `/download/<file_id>/processed_figures.json`**
+
+    - **请求方式**：`GET`
+    - **描述**：根据文件 ID 提供figure captions下载链接。
+    
+    - **请求参数**：
+      - `file_id`：上传 PDF 时生成的唯一 ID
+    
+    - **返回示例**：
+      ```json
+      {"figures": [],
+          "regionless-captions": [
+              {
+                  "figType": "Table",
+                  "name": "2",
+                  "page": 6,
+                  "text": "Table 2: Adsorption and dissociation energies of CO2 and CH4 at metal and interface."
+              },
+              {
+                  "figType": "Table",
+                  "name": "1",
+                  "page": 2,
+                  "text": "Table 1: Chemical compositions and abbreviations of the samples."
+              }
+          ]
+      }
+      ```
