@@ -1,17 +1,21 @@
 ### 部署方法
 
 1. **将 `Scala-pdffigures2` 放在 `bin` 目录**：
-    ```bash
-    ./workspaces/deepfigures-open/bin/pdffigures2-assembly-0.0.12-SNAPSHOT.jar
-    ```
+    - [下载地址](https://pan.baidu.com/s/1w80dZ1TKj0jy7urx8LRReQ?pwd=cpru)
+    - 路径
+        ```bash
+        ./workspaces/deepfigures-open/bin/pdffigures2-assembly-0.0.12-SNAPSHOT.jar
+        ```
 
 2. **放置 `texlive`：**
+    - [下载地址](https://pan.baidu.com/s/1vsdxVeUkExVrKWA-CbQtZA?pwd=dafq)
     - `texlive-fonts-extra.deb` 文件放置路径：
       ```bash
       ./workspaces/deepfigures-open/software/texlive-fonts-extra.deb
       ```
 
 3. **模型权重**：
+    - [下载地址](https://s3-us-west-2.amazonaws.com/ai2-s2-research-public/deepfigures/weights.tar.gz)
     - 权重放置路径：
       ```bash
       ./workspaces/deepfigures-open/weights
