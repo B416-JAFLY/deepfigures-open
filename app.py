@@ -4,6 +4,7 @@ import uuid
 import subprocess
 import shutil
 from werkzeug.utils import secure_filename
+import json
 
 app = Flask(__name__)
 
@@ -87,6 +88,46 @@ def move_images_to_final_folder(source_dir, dest_dir, file_id):
     
     return moved_images
 
+
+import json
+import os
+
+def process_json_file(json_file_path, file_id, dest_dir):
+    """
+    处理 JSON 文件，只保留 "regionless-captions" 中的每一项并移除 "boundary"。
+    
+    :param json_file_path: 原始 JSON 文件路径
+    :param file_id: 文件的唯一 ID
+    :param dest_dir: 目标目录
+    :return: 处理后的 JSON 文件路径
+    """
+    with open(json_file_path, 'r') as f:
+        data = json.load(f)
+    
+    # 只保留 regionless-captions 中的每一项，并去掉 "boundary"
+    if 'regionless-captions' in data:
+        # 创建一个新的列表来存储更新后的 captions
+        updated_captions = []
+        for caption in data['regionless-captions']:
+            # 移除 "boundary" 键
+            updated_caption = {key: value for key, value in caption.items() if key != 'boundary'}
+            updated_captions.append(updated_caption)
+        
+        # 更新 data 字典中的 regionless-captions 键对应的值
+        data['regionless-captions'] = updated_captions
+    
+    # 生成处理后的 JSON 文件路径
+    target_json_path = os.path.join(dest_dir, file_id, 'processed_figures.json')
+    
+    # 创建以 UUID 命名的目标子目录（如果不存在）
+    os.makedirs(os.path.join(dest_dir, file_id), exist_ok=True)
+
+    # 保存处理后的 JSON 文件
+    with open(target_json_path, 'w') as f:
+        json.dump(data, f, indent=4)
+
+    return target_json_path
+
 def clear_output_directory(directory):
     """
     清空指定目录中的所有内容。
@@ -136,6 +177,7 @@ def upload_pdf():
         file.save(pdf_save_path)
 
         # Step 2: 调用 `manage.py detectfigures` 处理 PDF 文件
+        clear_output_directory(app.config['OUTPUT_FOLDER'])
         try:
             # 构建命令行参数，调用 detectfigures
             detectfigures_command = [
@@ -160,28 +202,48 @@ def upload_pdf():
             # 如果命令执行失败，返回错误信息
             return jsonify({"error": f"Failed to run cut_images: {str(e)}"}), 500
 
-        # Step 4: 查找生成的图片并返回前端
-        # 获取 "output" 目录下的第一个子目录（处理结果所在路径）
+        # Step 4: 查找生成的图片和 JSON 文件
         first_subdir = get_first_subdirectory(app.config['OUTPUT_FOLDER'])
         if not first_subdir:
             return jsonify({"error": "No output directory found after processing"}), 404
 
-        # 检查第一个子目录中的 "images" 子目录是否存在
+        # 检查 pdffigures 子目录是否存在
+        pdffigures_dir = os.path.join(first_subdir, 'pdffigures')
+        json_file = None
+        if os.path.exists(pdffigures_dir):
+            for file in os.listdir(pdffigures_dir):
+                if file.endswith('.json'):
+                    json_file = os.path.join(pdffigures_dir, file)
+                    break
+
+        if json_file:
+            # 预处理 JSON 文件
+            try:
+                processed_json_path = process_json_file(json_file, file_id, app.config['FINAL_OUTPUT_FOLDER'])
+            except Exception as e:
+                return jsonify({"error": f"Failed to process JSON file: {str(e)}"}), 500
+
+        # Step 5: 检查并移动图片
         images_dir = os.path.join(first_subdir, 'images')
         if not os.path.exists(images_dir):
             return jsonify({"error": "No images directory found in output"}), 404
 
-        # Step 5: 移动图片到最终保存目录
+        # Move images to final output folder
         moved_images = move_images_to_final_folder(images_dir, app.config['FINAL_OUTPUT_FOLDER'], file_id)
 
         # Step 6: 清理 output 目录
         clear_output_directory(app.config['OUTPUT_FOLDER'])
 
-        # 构建图片的下载 URL 列表，供前端使用
+        # 构建图片和 JSON 文件的下载 URL 列表
         image_urls = [f"/download/{file_id}/{img}" for img in moved_images]
+        json_url = f"/download/{file_id}/processed_figures.json" if json_file else None
 
-        # 返回图片列表作为 JSON 响应
-        return jsonify({"images": image_urls}), 200
+        response_data = {"images": image_urls}
+        if json_url:
+            response_data["json"] = json_url
+
+        return jsonify(response_data), 200
+
 
     # 如果文件类型不允许，返回错误信息
     return jsonify({"error": "Invalid file type. Only PDF is allowed."}), 400
@@ -207,6 +269,25 @@ def download_image(file_id, filename):
     else:
         # 如果文件不存在，返回 404 错误
         return jsonify({"error": "File not found"}), 404
+@app.route('/download/<file_id>/processed_figures.json', methods=['GET'])
+def download_json(file_id):
+    """
+    提供下载处理后的 JSON 文件的 API 端点。
+    
+    :param file_id: 文件的唯一 ID
+    :return: JSON 文件或错误信息
+    """
+    # 构建处理后的 JSON 文件路径
+    json_file_path = os.path.join(app.config['FINAL_OUTPUT_FOLDER'], file_id, 'processed_figures.json')
+    
+    # 检查 JSON 文件是否存在
+    if os.path.exists(json_file_path):
+        # 使用 Flask 的 `send_from_directory` 函数发送文件
+        return send_from_directory(os.path.dirname(json_file_path), 'processed_figures.json')
+    else:
+        # 如果文件不存在，返回 404 错误
+        return jsonify({"error": "JSON file not found"}), 404
+
 
 if __name__ == '__main__':
     # 启动 Flask 应用，开启调试模式
