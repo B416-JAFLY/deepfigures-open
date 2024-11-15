@@ -17,11 +17,11 @@ import cut_images as cut
 app = Flask(__name__)
 
 # 文件上传目录
-UPLOAD_FOLDER = '/workspaces/deepfigures-open/uploads'
+UPLOAD_FOLDER = '/home/dj/code/deepfigure-open-flask/deepfigures-open/uploads'
 # 处理后的输出目录（deepfigures-open 的输出路径）
-OUTPUT_FOLDER = '/workspaces/deepfigures-open/workspaces/deepfigures-open/output'
+OUTPUT_FOLDER = '/home/dj/code/deepfigure-open-flask/deepfigures-open/workspaces/deepfigures-open/output'
 # 图片最终保存目录
-FINAL_OUTPUT_FOLDER = '/workspaces/deepfigures-open/processed_images'
+FINAL_OUTPUT_FOLDER = '/home/dj/code/deepfigure-open-flask/deepfigures-open/processed_images'
 
 # 配置 Flask 应用的上传和输出路径
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -152,8 +152,7 @@ def clear_output_directory(directory):
     
     try:
         shutil.rmtree(directory)
-        os.makedirs(directory)  # 重新创建目录
-        print(f"目录 {directory} 已清空")
+        print(f"目录 {directory} 已清理")
     except Exception as e:
         print(f"清空目录 {directory} 时出错: {e}")
 
@@ -191,7 +190,7 @@ def upload_pdf():
         # 保存文件到 uploads 文件夹，文件名为 UUID.pdf
         pdf_save_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{file_id}.pdf")
         file.save(pdf_save_path)
-        output_path = os.path.join(app.config['UPLOAD_FOLDER'], file_id)
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], file_id)
 
         # Step 2: 调用 `manage.py detectfigures` 处理 PDF 文件
         try:
@@ -209,13 +208,14 @@ def upload_pdf():
 
         # Step 3: 调用 `cut_images.py` 进一步处理生成的图片
         try:
-            cut.cut_images(output_path)
+            cut.process_output_directory(output_path)
+            cut.process_output_directory(output_path)
         except subprocess.CalledProcessError as e:
             # 如果命令执行失败，返回错误信息
             return jsonify({"error": f"Failed to run cut_images: {str(e)}"}), 500
 
         # Step 4: 查找生成的图片和 JSON 文件
-        first_subdir = get_first_subdirectory(app.config['OUTPUT_FOLDER'])
+        first_subdir = get_first_subdirectory(output_path)
         if not first_subdir:
             return jsonify({"error": "No output directory found after processing"}), 404
 
@@ -303,4 +303,4 @@ def download_json(file_id):
 
 if __name__ == '__main__':
     # 启动 Flask 应用，开启调试模式
-    app.run(debug=True)
+    app.run(debug=False, host='0.0.0.0', port=5020, threaded=True)
