@@ -1,14 +1,14 @@
 ### 部署方法
 
 1. **将 `Scala-pdffigures2` 放在 `bin` 目录**：
-    - [下载地址](https://pan.baidu.com/s/1w80dZ1TKj0jy7urx8LRReQ?pwd=cpru)
+    - [下载地址](https://github.com/B416-JAFLY/deepfigures-open/releases/download/release/pdffigures2-assembly-0.0.12-SNAPSHOT.jar)
     - 路径
         ```bash
         ./workspaces/deepfigures-open/bin/pdffigures2-assembly-0.0.12-SNAPSHOT.jar
         ```
 
 2. **放置 `texlive`：**
-    - [下载地址](https://pan.baidu.com/s/1vsdxVeUkExVrKWA-CbQtZA?pwd=dafq)
+    - [下载地址](https://github.com/B416-JAFLY/deepfigures-open/releases/download/release/texlive-fonts-extra.deb)
     - `texlive-fonts-extra.deb` 文件放置路径：
       ```bash
       ./workspaces/deepfigures-open/software/texlive-fonts-extra.deb
