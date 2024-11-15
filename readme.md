@@ -1,8 +1,8 @@
 ### 部署方法
 
-1. **将 `Scala-pdffigures2` 放在 `bin` 目录**：
+1. **放置 `Scala-pdffigures2`**：
     - [下载地址](https://github.com/B416-JAFLY/deepfigures-open/releases/download/release/pdffigures2-assembly-0.0.12-SNAPSHOT.jar)
-    - 路径
+    - `Scala-pdffigures2`文件放置路径
         ```bash
         ./workspaces/deepfigures-open/bin/pdffigures2-assembly-0.0.12-SNAPSHOT.jar
         ```
@@ -41,7 +41,12 @@
       ```bash
       docker run -p 6379:6379 redis
       ```     
-    - 在celery_tasks.py填写服务端与消息队列的地址，启动分布式celery worker
+    - 在celery_tasks.py填写服务端与消息队列的地址：
+      ```python
+      app = Celery('tasks', broker='redis://localhost:6379/0', backend='redis://localhost:6379/0')
+      flask_server_url ='http://localhost:5020/results_upload'
+      ```
+    - 启动分布式celery worker：
       ```bash
       sudo celery -A celery_tasks worker --loglevel=info
       ```
