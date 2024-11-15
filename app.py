@@ -5,6 +5,14 @@ import subprocess
 import shutil
 from werkzeug.utils import secure_filename
 import json
+import sys
+import os
+
+# 打印检查
+current_dir = os.path.dirname(os.path.abspath(__file__))
+target_path = os.path.join(current_dir, 'workspaces/deepfigures-open')
+sys.path.append(os.path.join(target_path))
+import cut_images as cut
 
 app = Flask(__name__)
 
@@ -130,16 +138,24 @@ def process_json_file(json_file_path, file_id, dest_dir):
 
 def clear_output_directory(directory):
     """
-    清空指定目录中的所有内容。
+    清空指定目录及其子目录中的所有内容。
     
     :param directory: 需要清空的目录
     """
-    for item in os.listdir(directory):
-        item_path = os.path.join(directory, item)
-        if os.path.isdir(item_path):
-            shutil.rmtree(item_path)
-        elif os.path.isfile(item_path):
-            os.remove(item_path)
+    if not os.path.exists(directory):
+        print(f"目录 {directory} 不存在")
+        return
+    
+    if not os.access(directory, os.W_OK):
+        print(f"没有权限访问目录 {directory}")
+        return
+    
+    try:
+        shutil.rmtree(directory)
+        os.makedirs(directory)  # 重新创建目录
+        print(f"目录 {directory} 已清空")
+    except Exception as e:
+        print(f"清空目录 {directory} 时出错: {e}")
 
 @app.route('/upload', methods=['POST'])
 def upload_pdf():
@@ -175,14 +191,14 @@ def upload_pdf():
         # 保存文件到 uploads 文件夹，文件名为 UUID.pdf
         pdf_save_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{file_id}.pdf")
         file.save(pdf_save_path)
+        output_path = os.path.join(app.config['UPLOAD_FOLDER'], file_id)
 
         # Step 2: 调用 `manage.py detectfigures` 处理 PDF 文件
-        clear_output_directory(app.config['OUTPUT_FOLDER'])
         try:
             # 构建命令行参数，调用 detectfigures
             detectfigures_command = [
                 'python', 'manage.py', 'detectfigures',
-                app.config['OUTPUT_FOLDER'], pdf_save_path
+                output_path, pdf_save_path
             ]
             # 使用 subprocess 调用命令，指定工作目录为 `deepfigures-open`
             subprocess.run(detectfigures_command, check=True, cwd='./workspaces/deepfigures-open')
@@ -193,11 +209,7 @@ def upload_pdf():
 
         # Step 3: 调用 `cut_images.py` 进一步处理生成的图片
         try:
-            # 构建命令行参数，使用 `sudo` 调用 `cut_images.py`
-            cut_images_command = ['sudo', 'python', 'cut_images.py']
-            
-            # 使用 subprocess 调用命令，指定工作目录为 `deepfigures-open`
-            subprocess.run(cut_images_command, check=True, cwd='./workspaces/deepfigures-open')
+            cut.cut_images(output_path)
         except subprocess.CalledProcessError as e:
             # 如果命令执行失败，返回错误信息
             return jsonify({"error": f"Failed to run cut_images: {str(e)}"}), 500
@@ -232,7 +244,7 @@ def upload_pdf():
         moved_images = move_images_to_final_folder(images_dir, app.config['FINAL_OUTPUT_FOLDER'], file_id)
 
         # Step 6: 清理 output 目录
-        clear_output_directory(app.config['OUTPUT_FOLDER'])
+        clear_output_directory(output_path)
 
         # 构建图片和 JSON 文件的下载 URL 列表
         image_urls = [f"/download/{file_id}/{img}" for img in moved_images]
