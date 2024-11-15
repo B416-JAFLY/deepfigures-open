@@ -1,11 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory, render_template_string
 import os
-import uuid
-import subprocess
-import shutil
-from werkzeug.utils import secure_filename
-import json
-import sys
 from celery_tasks import celery_upload_pdf
 
 app = Flask(__name__)

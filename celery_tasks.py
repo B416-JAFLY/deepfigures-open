@@ -1,6 +1,5 @@
 from flask import request
 from celery  import Celery
-import time
 import os
 import uuid
 import subprocess
