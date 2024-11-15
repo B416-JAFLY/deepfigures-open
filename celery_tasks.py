@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 import json
 import sys
 import requests
+import base64
 
 # 创建一个Celery实例，并指定消息代理（broker）为Redis
 app = Celery('tasks', broker='redis://localhost:6379/0', backend='redis://localhost:6379/0')
@@ -155,7 +156,7 @@ def clear_output_directory(directory):
         print(f"清空目录 {directory} 时出错: {e}")
 
 @app.task
-def celery_upload_pdf(request_file):
+def celery_upload_pdf(file_base64):
     """
     处理 PDF 文件上传的 API 端点。
     
@@ -168,94 +169,89 @@ def celery_upload_pdf(request_file):
     
     :return: JSON 响应，包含生成的图片列表或错误信息。
     """
-    # 检查请求中是否有文件
-    if 'file' not in request_file.files:
-        return {"error": "No file part"}, 400
 
-    # 获取上传的文件
-    file = request_file.files['file']
-    
-    # 检查文件名是否为空
-    if file.filename == '':
-        return {"error": "No selected file"}, 400
+    # 为文件生成一个唯一的 ID，避免文件名冲突
+    file_id = str(uuid.uuid4())
+    try:
+        # 解码 base64 字符串为文件内容
+        file_content = base64.b64decode(file_base64)
 
-    # 检查文件是否符合要求（是否为 PDF）
-    if file and allowed_file(file.filename):
-        # 使用 `secure_filename` 确保文件名安全
-        filename = secure_filename(file.filename)
-        # 为文件生成一个唯一的 ID，避免文件名冲突
-        file_id = str(uuid.uuid4())
-        # 保存文件到 uploads 文件夹，文件名为 UUID.pdf
+        # 保存文件到本地（根据需要选择保存路径）
         pdf_save_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.pdf")
-        file.save(pdf_save_path)
-        output_path = os.path.join(OUTPUT_FOLDER, file_id)
+        with open(pdf_save_path, 'wb') as f:
+            f.write(file_content)
 
-        # Step 2: 调用 `manage.py detectfigures` 处理 PDF 文件
+    except Exception as e:
+        return {"error": str(e)}, 500
+
+    output_path = os.path.join(OUTPUT_FOLDER, file_id)
+
+    # Step 2: 调用 `manage.py detectfigures` 处理 PDF 文件
+    try:
+        # 构建命令行参数，调用 detectfigures
+        detectfigures_command = [
+            'python', 'manage.py', 'detectfigures',
+            output_path, pdf_save_path
+        ]
+        # 使用 subprocess 调用命令，指定工作目录为 `deepfigures-open`
+        subprocess.run(detectfigures_command, check=True, cwd='./workspaces/deepfigures-open')
+
+    except subprocess.CalledProcessError as e:
+        # 如果命令执行失败，返回错误信息
+        return {"error": f"Failed to run detectfigures: {str(e)}"}, 500
+
+    # Step 3: 调用 `cut_images.py` 进一步处理生成的图片
+    try:
+        cut.process_output_directory(output_path)
+        cut.process_output_directory(output_path)
+    except subprocess.CalledProcessError as e:
+        # 如果命令执行失败，返回错误信息
+        return {"error": f"Failed to run cut_images: {str(e)}"}, 500
+
+    # Step 4: 查找生成的图片和 JSON 文件
+    first_subdir = get_first_subdirectory(output_path)
+    if not first_subdir:
+        return {"error": "No output directory found after processing"}, 404
+
+    # 检查 pdffigures 子目录是否存在
+    pdffigures_dir = os.path.join(first_subdir, 'pdffigures')
+    json_file = None
+    if os.path.exists(pdffigures_dir):
+        for file in os.listdir(pdffigures_dir):
+            if file.endswith('.json'):
+                json_file = os.path.join(pdffigures_dir, file)
+                break
+
+    if json_file:
+        # 预处理 JSON 文件
         try:
-            # 构建命令行参数，调用 detectfigures
-            detectfigures_command = [
-                'python', 'manage.py', 'detectfigures',
-                output_path, pdf_save_path
-            ]
-            # 使用 subprocess 调用命令，指定工作目录为 `deepfigures-open`
-            subprocess.run(detectfigures_command, check=True, cwd='./workspaces/deepfigures-open')
+            processed_json_path = process_json_file(json_file, file_id, FINAL_OUTPUT_FOLDER)
+        except Exception as e:
+            return {"error": f"Failed to process JSON file: {str(e)}"}, 500
 
-        except subprocess.CalledProcessError as e:
-            # 如果命令执行失败，返回错误信息
-            return {"error": f"Failed to run detectfigures: {str(e)}"}, 500
+    # Step 5: 检查并移动图片
+    images_dir = os.path.join(first_subdir, 'images')
+    if not os.path.exists(images_dir):
+        return {"error": "No images directory found in output"}, 404
 
-        # Step 3: 调用 `cut_images.py` 进一步处理生成的图片
-        try:
-            cut.process_output_directory(output_path)
-            cut.process_output_directory(output_path)
-        except subprocess.CalledProcessError as e:
-            # 如果命令执行失败，返回错误信息
-            return {"error": f"Failed to run cut_images: {str(e)}"}, 500
+    # Move images to final output folder
+    moved_images = move_images_to_final_folder(images_dir, FINAL_OUTPUT_FOLDER, file_id)
 
-        # Step 4: 查找生成的图片和 JSON 文件
-        first_subdir = get_first_subdirectory(output_path)
-        if not first_subdir:
-            return {"error": "No output directory found after processing"}, 404
+    # Step 6: 清理 output 目录
+    clear_output_directory(output_path)
 
-        # 检查 pdffigures 子目录是否存在
-        pdffigures_dir = os.path.join(first_subdir, 'pdffigures')
-        json_file = None
-        if os.path.exists(pdffigures_dir):
-            for file in os.listdir(pdffigures_dir):
-                if file.endswith('.json'):
-                    json_file = os.path.join(pdffigures_dir, file)
-                    break
+    # 构建图片和 JSON 文件的下载 URL 列表
+    image_urls = [f"/download/{file_id}/{img}" for img in moved_images]
+    json_url = f"/download/{file_id}/processed_figures.json" if json_file else None
 
-        if json_file:
-            # 预处理 JSON 文件
-            try:
-                processed_json_path = process_json_file(json_file, file_id, FINAL_OUTPUT_FOLDER)
-            except Exception as e:
-                return {"error": f"Failed to process JSON file: {str(e)}"}, 500
+    response_data = {"images": image_urls}
+    if json_url:
+        response_data["json"] = json_url
+    # 将图片和 JSON 文件返回给flask服务端
+    upload_dir = os.path.join(FINAL_OUTPUT_FOLDER, file_id)
+    upload_folder(upload_dir,file_id)
 
-        # Step 5: 检查并移动图片
-        images_dir = os.path.join(first_subdir, 'images')
-        if not os.path.exists(images_dir):
-            return {"error": "No images directory found in output"}, 404
-
-        # Move images to final output folder
-        moved_images = move_images_to_final_folder(images_dir, FINAL_OUTPUT_FOLDER, file_id)
-
-        # Step 6: 清理 output 目录
-        clear_output_directory(output_path)
-
-        # 构建图片和 JSON 文件的下载 URL 列表
-        image_urls = [f"/download/{file_id}/{img}" for img in moved_images]
-        json_url = f"/download/{file_id}/processed_figures.json" if json_file else None
-
-        response_data = {"images": image_urls}
-        if json_url:
-            response_data["json"] = json_url
-        # 将图片和 JSON 文件返回给flask服务端
-        upload_dir = os.path.join(FINAL_OUTPUT_FOLDER, file_id)
-        upload_folder(upload_dir,file_id)
-
-        return response_data, 200
+    return response_data, 200
 
 
     # 如果文件类型不允许，返回错误信息

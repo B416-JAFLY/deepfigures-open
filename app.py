@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, send_from_directory, render_template_string
 import os
 from celery_tasks import celery_upload_pdf
+import base64
 
 app = Flask(__name__)
 current_dir = os.getcwd()
@@ -25,8 +26,22 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload_pdf():
-    result_json,result_code=celery_upload_pdf(request)
-    return jsonify(result_json),result_code
+    try:
+        # 获取文件并转为 base64 编码
+        file = request.files['file']
+        file_content = file.read()
+        file_base64 = base64.b64encode(file_content).decode('utf-8')
+
+        # 调用 Celery 任务并传递 base64 编码文件
+        result = celery_upload_pdf.apply_async(args=[file_base64])
+        result_json, result_code = result.get()
+
+    except Exception as e:
+        print("Exception occurred:", e)
+        result_json = {"error": str(e)}
+        result_code = 500
+
+    return jsonify(result_json), result_code
 
 @app.route('/download/<file_id>/<filename>', methods=['GET'])
 def download_image(file_id, filename):
