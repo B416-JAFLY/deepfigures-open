@@ -26,14 +26,24 @@
       ```
 
 4. **依赖安装**：
-    - 大部分依赖会在第一次构建镜像时安装进镜像，只需要在当前环境安装Flask：
+    - 使用conda管理依赖：
       ```bash
-      pip install flask
+      conda env create -f environment.yml
+      conda activate celery
       ```
 
 5. **启动应用**：
+    - 服务端
       ```bash
-      (sudo) python app.py
+      python app.py
+      ```
+    - 消息队列
+      ```bash
+      docker run -p 6379:6379 redis
+      ```     
+    - 在celery_tasks.py填写服务端与消息队列的地址，启动分布式celery worker
+      ```bash
+      sudo celery -A celery_tasks worker --loglevel=info
       ```
 
 ### API 用法
