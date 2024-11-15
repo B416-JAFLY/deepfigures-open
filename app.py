@@ -6,7 +6,6 @@ import shutil
 from werkzeug.utils import secure_filename
 import json
 import sys
-import os
 
 # 打印检查
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -16,12 +15,20 @@ import cut_images as cut
 
 app = Flask(__name__)
 
-# 文件上传目录
-UPLOAD_FOLDER = '/home/dj/code/deepfigure-open-flask/deepfigures-open/uploads'
-# 处理后的输出目录（deepfigures-open 的输出路径）
-OUTPUT_FOLDER = '/home/dj/code/deepfigure-open-flask/deepfigures-open/workspaces/deepfigures-open/output'
-# 图片最终保存目录
-FINAL_OUTPUT_FOLDER = '/home/dj/code/deepfigure-open-flask/deepfigures-open/processed_images'
+# 默认目录路径
+PATH_CONFIG = {
+    "UPLOAD_FOLDER": "./uploads",
+    "OUTPUT_FOLDER": "./workspaces/deepfigures-open/output",
+    "FINAL_OUTPUT_FOLDER": "./processed_images"
+}
+
+# 获取当前工作目录
+current_dir = os.getcwd()
+
+# 将相对路径拼接为绝对路径
+UPLOAD_FOLDER = os.path.join(current_dir, PATH_CONFIG["UPLOAD_FOLDER"])
+OUTPUT_FOLDER = os.path.join(current_dir, PATH_CONFIG["OUTPUT_FOLDER"])
+FINAL_OUTPUT_FOLDER = os.path.join(current_dir, PATH_CONFIG["FINAL_OUTPUT_FOLDER"])
 
 # 配置 Flask 应用的上传和输出路径
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
