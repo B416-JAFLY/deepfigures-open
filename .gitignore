@@ -41,7 +41,8 @@ __pycache__/
 # 忽略环境配置文件
 .env
 
-/processed_images
+/celery_worker_processed_images
+/flask_received_images
 /uploads
 
 /workspaces/deepfigures-open/bin/pdffigures2-assembly-0.0.12-SNAPSHOT.jar
