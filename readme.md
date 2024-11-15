@@ -15,7 +15,7 @@
       ```
 
 3. **模型权重**：
-    - [下载地址](https://s3-us-west-2.amazonaws.com/ai2-s2-research-public/deepfigures/weights.tar.gz)
+    - [下载地址](https://github.com/B416-JAFLY/deepfigures-open/releases/download/release/weights.tar.gz)
     - 权重放置路径：
       ```bash
       ./workspaces/deepfigures-open/weights
