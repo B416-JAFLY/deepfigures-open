@@ -50,7 +50,7 @@
       ```bash
       sudo celery -A celery_tasks worker --loglevel=info
       ```
-
+---
 ### API 用法
 
 1. **主页接口 `/`**
@@ -134,3 +134,28 @@
           ]
       }
       ```
+---
+
+### 批量处理 PDF 文件
+
+#### 批处理脚本
+
+脚本 `pdf_batch_process.py` 批量处理 PDF 文件。
+
+- **功能**：
+  1. 重命名文件名中包含空格的 PDF。
+  2. 提取 PDF 中的图片和 JSON 数据。
+
+- **运行**：
+    ```bash
+    python pdf_batch_process.py
+    ```
+
+- **输入**：
+    - PDF 文件所在的目录路径。
+    - 最大线程数（默认为 4）。
+
+- **注意**：
+    - 脚本会在同目录生成 `json_` 和 `images_` 开头的文件夹存储提取的数据。
+
+---
