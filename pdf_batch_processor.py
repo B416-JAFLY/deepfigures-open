@@ -13,6 +13,19 @@ BASE_URL = os.getenv('FLASK_BASE_URL', 'http://192.168.1.110:5020')
 
 MAX_RETRIES = 3  # 最大重试次数
 
+def rename_files_with_spaces(directory: str):
+    """
+    检查目录下的 PDF 文件名是否包含空格，若有，则替换为空格并重命名。
+    """
+    pdf_files = glob.glob(os.path.join(directory, "*.pdf"))
+    for file_path in pdf_files:
+        file_dir, file_name = os.path.split(file_path)
+        if " " in file_name:
+            new_file_name = file_name.replace(" ", "_")
+            new_file_path = os.path.join(file_dir, new_file_name)
+            os.rename(file_path, new_file_path)
+            print(f"重命名文件: {file_path} -> {new_file_path}")
+
 def clear_environment(pdf_path: str):
     """清理与 PDF 文件相关的文件夹"""
     pdf_name = os.path.basename(pdf_path).split(".")[0]
@@ -23,14 +36,21 @@ def clear_environment(pdf_path: str):
             shutil.rmtree(dir_path)
             print(f"清理文件夹: {dir_path}")
 
-def download_json(file_id: str, pdf_path: str) -> str:
+def download_json(file_id: str, json_url: str, pdf_path: str) -> str:
+    """
+    下载 JSON 文件并保存到本地。
+    :param file_id: PDF 文件上传后的唯一 ID（用于命名本地 JSON 文件）
+    :param json_url: JSON 文件的相对路径
+    :param pdf_path: PDF 文件路径（用于生成保存 JSON 文件的目录）
+    :return: 本地 JSON 文件路径
+    """
     pdf_name = os.path.basename(pdf_path).split(".")[0]
     json_dir = f"json_{pdf_name}"
     os.makedirs(json_dir, exist_ok=True)
 
     try:
-        json_url = f"{BASE_URL}/download/{file_id}/processed_figures.json"
-        response = requests.get(json_url)
+        full_json_url = f"{BASE_URL}{json_url}"  # 拼接完整的 JSON 下载 URL
+        response = requests.get(full_json_url)
         response.raise_for_status()
         data = response.json()
         json_file_path = os.path.join(json_dir, f"{file_id}_processed_figures.json")
@@ -46,20 +66,30 @@ def download_json(file_id: str, pdf_path: str) -> str:
         raise
 
 def process_pdf_with_flask(pdf_path: str) -> list:
+    """
+    处理 PDF 文件，获取 JSON 和图片信息。
+    :param pdf_path: PDF 文件路径
+    :return: 已下载的本地图片路径列表
+    """
     url = f"{BASE_URL}/upload"
     files = {'file': open(pdf_path, 'rb')}
     try:
         response = requests.post(url, files=files)
         response.raise_for_status()
         json_response = response.json()
-        if 'images' in json_response:
+
+        if 'images' in json_response and 'json' in json_response:
+            # 获取 JSON 文件的 URL 和图片的 URL 列表
+            json_url = json_response['json']
             image_urls = json_response['images']
-            file_id = json_response.get('file_id', os.path.basename(pdf_path).split('.')[0])
-            download_json(file_id, pdf_path)
+
+            file_id = os.path.basename(pdf_path).split('.')[0]
+            download_json(file_id, json_url, pdf_path)
             return download_images(image_urls, pdf_path)
         else:
-            print(f"Error: {json_response.get('error', 'Unknown error occurred')}")
-            raise Exception(f"Flask 返回错误信息: {json_response.get('error', 'Unknown error occurred')}")
+            error_msg = json_response.get('error', 'Unknown error occurred')
+            print(f"Error: {error_msg}")
+            raise Exception(f"Flask 返回错误信息: {error_msg}")
     except requests.RequestException as e:
         print(f"Failed to process PDF with Flask: {e}")
         raise
@@ -67,25 +97,23 @@ def process_pdf_with_flask(pdf_path: str) -> list:
         files['file'].close()
 
 def download_images(image_urls: list, pdf_path: str) -> list:
+    """
+    下载图片列表并保存到本地。
+    :param image_urls: 图片的相对路径列表
+    :param pdf_path: PDF 文件路径（用于生成保存图片的目录）
+    :return: 本地保存的图片路径列表
+    """
     pdf_name = os.path.basename(pdf_path).split(".")[0]
     img_dir = f"images_{pdf_name}"
     os.makedirs(img_dir, exist_ok=True)
     img_list = []
     for i, img_url in enumerate(image_urls):
         try:
-            if img_url.startswith('/'):
-                img_url = BASE_URL + img_url
-            img_response = requests.get(img_url)
+            full_img_url = f"{BASE_URL}{img_url}"  # 拼接完整的图片 URL
+            img_response = requests.get(full_img_url)
             img_response.raise_for_status()
             img = Image.open(BytesIO(img_response.content))
-            url_path = urlparse(img_url).path
-            file_name = os.path.basename(url_path)
-            name_without_extension, file_extension = os.path.splitext(file_name)
-            img_extension = img.format.lower()
-            if not file_extension:
-                file_name = f"{name_without_extension}.{img_extension}"
-            else:
-                file_name = name_without_extension + file_extension
+            file_name = os.path.basename(urlparse(img_url).path)
             file_path = os.path.join(img_dir, file_name)
             img.save(file_path)
             img_list.append(file_path)
@@ -96,6 +124,7 @@ def download_images(image_urls: list, pdf_path: str) -> list:
             print(f"Failed to save image {img_url}: {e}")
             raise
     return img_list
+
 
 def process_pdf_with_retry(pdf_path: str):
     """带重试机制的 PDF 处理"""
@@ -127,6 +156,9 @@ def process_all_pdfs_in_directory(directory: str, max_workers: int = 4):
 if __name__ == "__main__":
     directory = input("请输入包含 PDF 文件的目录路径: ").strip()
     if os.path.isdir(directory):
+        # 检查并重命名文件名中的空格
+        rename_files_with_spaces(directory)
+
         max_threads = input("请输入最大线程数（默认4）: ").strip()
         max_threads = int(max_threads) if max_threads.isdigit() else 4
         process_all_pdfs_in_directory(directory, max_workers=max_threads)
