@@ -140,7 +140,7 @@
 
 #### 批处理脚本
 
-脚本 `pdf_batch_process.py` 批量处理 PDF 文件。
+脚本 `pdf_batch_processor.py` 批量处理 PDF 文件。
 
 - **功能**：
   1. 重命名文件名中包含空格的 PDF。
@@ -148,7 +148,7 @@
 
 - **运行**：
     ```bash
-    python pdf_batch_process.py
+    python pdf_batch_processor.py
     ```
 
 - **输入**：
